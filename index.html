@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treebar Screen Watcher</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #0f172a;
+    --bg2:      #1e293b;
+    --bg3:      #334155;
+    --border:   #475569;
+    --accent:   #3b82f6;
+    --accent2:  #1d4ed8;
+    --green:    #22c55e;
+    --red:      #ef4444;
+    --orange:   #f97316;
+    --yellow:   #eab308;
+    --text:     #f1f5f9;
+    --muted:    #94a3b8;
+    --radius:   10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 14px 18px 12px;
+    background: linear-gradient(135deg, #1565C0, #0d47a1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    flex-shrink: 0;
+  }
+  .header-icon { font-size: 1.4rem; }
+  .header-title { font-size: 1rem; font-weight: 700; color: #fff; }
+  .header-sub { font-size: 0.72rem; color: rgba(255,255,255,.65); }
+  .status-pill {
+    margin-left: auto;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all .3s;
+  }
+  .status-pill.running { background: #14532d; color: #86efac; }
+  .status-pill.stopped { background: #7f1d1d; color: #fca5a5; }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    animation: blink 1.2s infinite;
+  }
+  .status-pill.running .status-dot { background: #22c55e; }
+  .status-pill.stopped .status-dot { background: #ef4444; animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Scrollable body ── */
+  .body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg3) transparent;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .card-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ── Region Preview ── */
+  .region-preview {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    border: 2px dashed var(--border);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .region-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .region-preview .placeholder {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 10px;
+  }
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+    animation: scan 2s linear infinite;
+    display: none;
+  }
+  .running .scan-line { display: block; }
+  @keyframes scan {
+    from { top: 0; }
+    to   { top: 100%; }
+  }
+
+  /* ── Inputs & Buttons ── */
+  input[type=text], input[type=number], input[type=password] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color .2s;
+    margin-bottom: 8px;
+  }
+  input:focus { border-color: var(--accent); }
+  input.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .btn {
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary  { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-success  { background: #166534; color: #86efac; border: 1px solid #22c55e; }
+  .btn-success:hover { background: #14532d; }
+  .btn-danger   { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+  .btn-danger:hover  { background: #991b1b; }
+  .btn-ghost    { background: var(--bg3); color: var(--text); }
+  .btn-ghost:hover { background: var(--border); }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-full { width: 100%; }
+
+  .btn-row { display: flex; gap: 8px; }
+
+  /* ── Interval slider ── */
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+  input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+    cursor: pointer;
+  }
+  .slider-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* ── Result card ── */
+  .result-card {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--bg3);
+    font-size: 0.85rem;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: var(--muted); }
+  .result-val   { font-weight: 600; }
+  .amount-big   { font-size: 1.5rem; font-weight: 800; color: #22c55e; }
+  .conf-wrap    { display: flex; align-items: center; gap: 6px; flex: 1; justify-content: flex-end; }
+  .conf-bar     { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; max-width: 80px; }
+  .conf-fill    { height: 100%; border-radius: 3px; transition: width .4s; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .badge-success { background: #14532d; color: #86efac; }
+  .badge-warning { background: #451a03; color: #fbbf24; }
+  .badge-info    { background: var(--bg3); color: var(--muted); }
+
+  /* ── Log ── */
+  .log-box {
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--bg3);
+    padding: 10px 12px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.73rem;
+    color: var(--muted);
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg3) transparent;
+  }
+  .log-box .log-entry { display: block; }
+  .log-box .log-entry.success { color: #86efac; }
+  .log-box .log-entry.warn    { color: #fbbf24; }
+  .log-box .log-entry.error   { color: #fca5a5; }
+  .log-box .log-entry.info    { color: #93c5fd; }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    padding: 10px 16px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .shortcut-hint {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .section-collapse summary {
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .section-collapse summary::after {
+    content: "▾";
+    margin-left: auto;
+    transition: transform .2s;
+  }
+  .section-collapse[open] summary::after { transform: rotate(180deg); }
+
+  /* Region info box */
+  .region-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg3);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+  }
+  .region-info .coord { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+  .region-none { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <span class="header-icon">📲</span>
+  <div>
+    <div class="header-title">Treebar Screen Watcher</div>
+    <div class="header-sub">จับหน้าจอ → Claude Vision → ปิดบิล</div>
+  </div>
+  <div class="status-pill stopped" id="status-pill">
+    <div class="status-dot"></div>
+    <span id="status-text">หยุดทำงาน</span>
+  </div>
+</div>
+
+<!-- ── Body ── -->
+<div class="body" id="main-body">
+
+  <!-- Region Card -->
+  <div class="card">
+    <div class="card-title">📍 บริเวณที่จับภาพ</div>
+    <div class="region-preview" id="preview-box">
+      <div class="scan-line" id="scan-line"></div>
+      <div class="placeholder" id="preview-placeholder">
+        ยังไม่ได้เลือกพื้นที่<br>
+        <span style="font-size:1.5rem;display:block;margin-top:6px">🖱️</span>
+      </div>
+      <img id="preview-img" src="" alt="preview" style="display:none">
+    </div>
+
+    <div class="region-info" id="region-info">
+      <span class="region-none" id="region-text">กดปุ่มด้านล่างเพื่อเลือกบริเวณ</span>
+    </div>
+
+    <button class="btn btn-ghost btn-full" id="btn-select-region">
+      🖱️ เลือกบริเวณบนหน้าจอ
+    </button>
+  </div>
+
+  <!-- API Settings (collapsible) -->
+  <div class="card">
+    <details class="section-collapse" id="api-details">
+      <summary>⚙️ ตั้งค่า API</summary>
+
+      <label>Claude API Key</label>
+      <input type="password" id="api-key" class="mono" placeholder="sk-ant-api..." spellcheck="false">
+
+      <label style="margin-top:4px">Firebase Project ID</label>
+      <input type="text" id="fb-project" class="mono" placeholder="treebar-pos" spellcheck="false" value="treebar-pos">
+
+      <label style="margin-top:4px">Firebase API Key</label>
+      <input type="password" id="fb-key" class="mono" placeholder="AIzaSy..." spellcheck="false" value="AIzaSyBcJGC_EcPVi_7m7y3elGOOzuOjmvsjsQQ">
+
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn btn-ghost btn-sm" id="btn-save-api" style="flex:1">💾 บันทึก</button>
+        <button class="btn btn-ghost btn-sm" id="btn-show-key" style="flex:none">👁</button>
+      </div>
+    </details>
+  </div>
+
+  <!-- Interval -->
+  <div class="card">
+    <div class="card-title">⏱️ ความถี่การจับภาพ</div>
+    <div class="slider-wrap">
+      <input type="range" id="interval-slider" min="500" max="5000" step="500" value="1000">
+      <span class="slider-val" id="interval-val">1.0 วิ</span>
+    </div>
+    <div style="font-size:0.75rem;color:var(--muted);margin-top:6px">
+      จับภาพทุก <span id="interval-desc">1 วินาที</span> — ค่าต่ำ = แม่นยำกว่า ใช้ CPU มากกว่า
+    </div>
+  </div>
+
+  <!-- Last Result -->
+  <div class="card" id="result-section" style="display:none">
+    <div class="card-title">💰 ผลการวิเคราะห์ล่าสุด</div>
+    <div class="result-card">
+      <div class="result-row">
+        <span class="result-label">จำนวนเงิน</span>
+        <span class="amount-big" id="res-amount">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">ผู้โอน</span>
+        <span class="result-val" id="res-sender">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">เวลา</span>
+        <span class="result-val" id="res-time">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">ธนาคาร</span>
+        <span class="result-val" id="res-bank">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">ความมั่นใจ</span>
+        <div class="conf-wrap">
+          <div class="conf-bar"><div class="conf-fill" id="res-conf-fill"></div></div>
+          <span class="result-val" id="res-conf">—</span>
+        </div>
+      </div>
+      <div style="margin-top:8px" id="res-status-badge"></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center">
+      📋 บันทึกการทำงาน
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto;padding:3px 8px;font-size:0.7rem" id="btn-clear-log">ล้าง</button>
+    </div>
+    <div class="log-box" id="log-box">
+      <span class="log-entry info">[ระบบ] พร้อมทำงาน — เลือกพื้นที่และกดเริ่ม</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Bottom bar ── -->
+<div class="bottom-bar">
+  <button class="btn btn-success" id="btn-start" style="flex:1">
+    ▶ เริ่มจับภาพ
+  </button>
+  <button class="btn btn-danger" id="btn-stop" style="flex:1;display:none">
+    ⏹ หยุด
+  </button>
+  <span class="shortcut-hint">Ctrl+Shift+W = เริ่ม/หยุด</span>
+</div>
+
+<script>
+  // ── State ─────────────────────────────────────────────────
+  let isRunning = false;
+  let config    = {};
+
+  // ── Refs ──────────────────────────────────────────────────
+  const statusPill     = document.getElementById("status-pill");
+  const statusText     = document.getElementById("status-text");
+  const previewBox     = document.getElementById("preview-box");
+  const previewImg     = document.getElementById("preview-img");
+  const previewPh      = document.getElementById("preview-placeholder");
+  const regionText     = document.getElementById("region-text");
+  const btnStart       = document.getElementById("btn-start");
+  const btnStop        = document.getElementById("btn-stop");
+  const btnSelectReg   = document.getElementById("btn-select-region");
+  const btnSaveApi     = document.getElementById("btn-save-api");
+  const btnShowKey     = document.getElementById("btn-show-key");
+  const btnClearLog    = document.getElementById("btn-clear-log");
+  const apiKeyInput    = document.getElementById("api-key");
+  const fbProjectInput = document.getElementById("fb-project");
+  const fbKeyInput     = document.getElementById("fb-key");
+  const intervalSlider = document.getElementById("interval-slider");
+  const intervalVal    = document.getElementById("interval-val");
+  const intervalDesc   = document.getElementById("interval-desc");
+  const logBox         = document.getElementById("log-box");
+  const resultSection  = document.getElementById("result-section");
+  const resAmount      = document.getElementById("res-amount");
+  const resSender      = document.getElementById("res-sender");
+  const resTime        = document.getElementById("res-time");
+  const resBank        = document.getElementById("res-bank");
+  const resConfFill    = document.getElementById("res-conf-fill");
+  const resConf        = document.getElementById("res-conf");
+  const resStatusBadge = document.getElementById("res-status-badge");
+
+  // ── Logging ───────────────────────────────────────────────
+  function addLog(msg) {
+    const ts   = new Date().toLocaleTimeString("th-TH");
+    const line = `[${ts}] ${msg}`;
+    const cls  = msg.includes("✅") || msg.includes("☁️") ? "success"
+               : msg.includes("⚠️") ? "warn"
+               : msg.includes("❌") ? "error"
+               : msg.includes("💰") || msg.includes("🚀") || msg.includes("🔍") ? "info"
+               : "";
+    const span = document.createElement("span");
+    span.className = `log-entry ${cls}`;
+    span.textContent = line;
+    logBox.prepend(span);
+    // เก็บแค่ 60 บรรทัด
+    while (logBox.children.length > 60) logBox.removeChild(logBox.lastChild);
+  }
+
+  // ── Interval slider ───────────────────────────────────────
+  intervalSlider.addEventListener("input", () => {
+    const ms = parseInt(intervalSlider.value);
+    intervalVal.textContent  = (ms / 1000).toFixed(1) + " วิ";
+    intervalDesc.textContent = (ms / 1000).toFixed(1) + " วินาที";
+    window.watcher.setInterval(ms);
+  });
+
+  // ── Region Selector ───────────────────────────────────────
+  btnSelectReg.addEventListener("click", () => {
+    addLog("🖱️ เปิดหน้าต่างเลือกพื้นที่ — ลากเมาส์บนหน้าจอ");
+    window.watcher.openRegionSelector();
+  });
+
+  // ── Region updated ────────────────────────────────────────
+  function updateRegionDisplay(region) {
+    if (!region) return;
+    regionText.innerHTML = `<span class="coord">${region.width}×${region.height}</span> ที่ตำแหน่ง <span class="coord">(${region.x}, ${region.y})</span>`;
+    regionText.classList.remove("region-none");
+  }
+
+  // ── API Save ──────────────────────────────────────────────
+  btnSaveApi.addEventListener("click", () => {
+    const apiKey    = apiKeyInput.value.trim();
+    const fbProject = fbProjectInput.value.trim();
+    const fbKey     = fbKeyInput.value.trim();
+    if (!apiKey) { addLog("❌ กรุณากรอก Claude API Key"); return; }
+    window.watcher.saveConfig({ apiKey, fbProject, fbKey });
+    config.apiKey    = apiKey;
+    config.fbProject = fbProject;
+    config.fbKey     = fbKey;
+    addLog("💾 บันทึกค่า API เรียบร้อย");
+    document.getElementById("api-details").open = false;
+  });
+
+  btnShowKey.addEventListener("click", () => {
+    apiKeyInput.type = apiKeyInput.type === "password" ? "text" : "password";
+  });
+
+  // ── Start / Stop ─────────────────────────────────────────
+  function setRunning(running) {
+    isRunning = running;
+    statusPill.className = `status-pill ${running ? "running" : "stopped"}`;
+    statusText.textContent = running ? "กำลังทำงาน" : "หยุดทำงาน";
+    btnStart.style.display  = running ? "none" : "flex";
+    btnStop.style.display   = running ? "flex" : "none";
+    previewBox.className    = `region-preview ${running ? "running" : ""}`;
+  }
+
+  btnStart.addEventListener("click", () => {
+    const apiKey = apiKeyInput.value.trim() || config.apiKey;
+    if (!apiKey) {
+      addLog("❌ กรุณากรอก Claude API Key ก่อนเริ่ม");
+      document.getElementById("api-details").open = true;
+      return;
+    }
+    if (!config.captureRegion) {
+      addLog("❌ กรุณาเลือกบริเวณจับภาพก่อน");
+      return;
+    }
+    window.watcher.startCapture({
+      apiKey,
+      firebaseConfig: {
+        projectId: fbProjectInput.value.trim() || "treebar-pos",
+        apiKey: fbKeyInput.value.trim() || "AIzaSyBcJGC_EcPVi_7m7y3elGOOzuOjmvsjsQQ",
+      },
+    });
+  });
+
+  btnStop.addEventListener("click", () => {
+    window.watcher.stopCapture();
+  });
+
+  btnClearLog.addEventListener("click", () => {
+    logBox.innerHTML = "";
+    addLog("[ล้างบันทึก]");
+  });
+
+  // ── Show result ───────────────────────────────────────────
+  function showResult(result) {
+    if (!result.payment_detected) return;
+    resultSection.style.display = "block";
+    const amt = parseFloat(result.amount);
+    resAmount.textContent = `฿${amt.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`;
+    resSender.textContent = result.sender || "ไม่ระบุ";
+    resTime.textContent   = result.time   || "--:--";
+    resBank.textContent   = result.bank   || "ไม่ระบุ";
+
+    const conf = parseFloat(result.confidence) || 0;
+    resConf.textContent       = conf.toFixed(1) + "%";
+    resConfFill.style.width   = conf + "%";
+    resConfFill.style.background = conf >= 95 ? "#22c55e" : conf >= 80 ? "#f97316" : "#ef4444";
+
+    resStatusBadge.innerHTML = conf >= 95
+      ? `<span class="badge badge-success">✅ ส่ง Firebase แล้ว</span>`
+      : `<span class="badge badge-warning">⚠️ ความมั่นใจต่ำ</span>`;
+  }
+
+  // ── IPC Listeners ─────────────────────────────────────────
+  window.watcher.onConfigLoaded((cfg) => {
+    config = cfg;
+    if (cfg.captureRegion) updateRegionDisplay(cfg.captureRegion);
+    if (cfg.captureInterval) {
+      intervalSlider.value = cfg.captureInterval;
+      intervalVal.textContent  = (cfg.captureInterval / 1000).toFixed(1) + " วิ";
+      intervalDesc.textContent = (cfg.captureInterval / 1000).toFixed(1) + " วินาที";
+    }
+    if (cfg.apiKey) apiKeyInput.value = cfg.apiKey;
+    if (cfg.enabled) setRunning(true);
+  });
+
+  window.watcher.onConfigUpdated((cfg) => {
+    config = cfg;
+    if (cfg.captureRegion) updateRegionDisplay(cfg.captureRegion);
+    setRunning(cfg.enabled);
+  });
+
+  window.watcher.onPreviewFrame((dataUrl) => {
+    previewImg.src = dataUrl;
+    previewImg.style.display = "block";
+    previewPh.style.display  = "none";
+  });
+
+  window.watcher.onAnalysisResult((result) => {
+    showResult(result);
+  });
+
+  window.watcher.onLog((msg) => {
+    addLog(msg);
+  });
+</script>
+</body>
+</html>

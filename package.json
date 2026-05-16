@@ -1,0 +1,47 @@
+{
+  "name": "treebar-screen-watcher",
+  "version": "1.0.0",
+  "description": "Treebar POS — จับหน้าจอแจ้งเตือนโอนเงินแบบ real-time แล้วปิดบิลอัตโนมัติ",
+  "main": "main.js",
+  "author": "Treebar POS",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.treebar.screenwatcher",
+    "productName": "Treebar Screen Watcher",
+    "copyright": "Treebar POS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "overlay.html",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Treebar Screen Watcher"
+    },
+    "publish": { "provider": "github" }
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  }
+}

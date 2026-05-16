@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  html, body {
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.45);
+    cursor: crosshair;
+    overflow: hidden;
+  }
+  #hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    padding: 16px 28px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-family: 'Sarabun', Arial, sans-serif;
+    text-align: center;
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  #selection {
+    position: fixed;
+    border: 2px solid #00b4ff;
+    background: rgba(0, 180, 255, 0.12);
+    display: none;
+    pointer-events: none;
+  }
+  #size-label {
+    position: fixed;
+    background: #00b4ff;
+    color: #000;
+    font-size: 12px;
+    font-family: monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: none;
+    pointer-events: none;
+  }
+  #cancel-hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: #ff8080;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Sarabun', Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+<div id="hint">
+  🖱️ ลากเมาส์เพื่อเลือกบริเวณที่ต้องการจับภาพ<br>
+  <small style="opacity:.7;font-size:14px">เลือกเฉพาะหน้าต่างแจ้งเตือนธนาคาร</small>
+</div>
+<div id="selection"></div>
+<div id="size-label"></div>
+<div id="cancel-hint">กด ESC เพื่อยกเลิก</div>
+
+<script>
+  const sel   = document.getElementById("selection");
+  const label = document.getElementById("size-label");
+  const hint  = document.getElementById("hint");
+
+  let startX = 0, startY = 0;
+  let isDragging = false;
+
+  document.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    hint.style.display = "none";
+    sel.style.display = "block";
+    label.style.display = "block";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const x = Math.min(e.clientX, startX);
+    const y = Math.min(e.clientY, startY);
+    const w = Math.abs(e.clientX - startX);
+    const h = Math.abs(e.clientY - startY);
+
+    sel.style.left   = x + "px";
+    sel.style.top    = y + "px";
+    sel.style.width  = w + "px";
+    sel.style.height = h + "px";
+
+    label.style.left = (x + w + 6) + "px";
+    label.style.top  = y + "px";
+    label.textContent = `${w} × ${h}`;
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const x = Math.min(e.clientX, startX);
+    const y = Math.min(e.clientY, startY);
+    const w = Math.abs(e.clientX - startX);
+    const h = Math.abs(e.clientY - startY);
+
+    // ต้องเลือกพื้นที่อย่างน้อย 50×50 px
+    if (w < 50 || h < 50) {
+      sel.style.display = "none";
+      label.style.display = "none";
+      hint.style.display = "block";
+      hint.innerHTML = "⚠️ พื้นที่เล็กเกินไป กรุณาลากใหม่<br><small style='font-size:14px;opacity:.7'>ต้องการอย่างน้อย 50×50 px</small>";
+      return;
+    }
+
+    // ส่งผลกลับ main process
+    window.watcher.regionSelected({ x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      window.watcher.regionCancel();
+    }
+  });
+</script>
+</body>
+</html>
